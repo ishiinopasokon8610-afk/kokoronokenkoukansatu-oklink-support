@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心の健康観察</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --bg-color: #f4f7f6;
+        }
+        body {
+            font-family: "Hiragino Maru Gothic ProN", "Meiryo", sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 左のメニューバー */
+        #sidebar {
+            width: 200px;
+            background-color: #333;
+            color: white;
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-sizing: border-box;
+        }
+        #sidebar h3 {
+            margin: 0 0 10px 0;
+            text-align: center;
+            font-size: 16px;
+            border-bottom: 1px solid #555;
+            padding-bottom: 10px;
+        }
+        .sidebar-btn {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            text-align: left;
+            transition: background 0.2s;
+        }
+        .sidebar-btn:hover {
+            background-color: #555;
+        }
+
+        /* 右側のメインコンテンツ */
+        #main-content {
+            flex: 1;
+            padding: 20px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+
+        #app-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
+        }
+        /* 右上の先生用ボタン */
+        .teacher-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: #eee;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 10;
+        }
+        .teacher-btn:hover {
+            background-color: #ddd;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+        }
+        
+        /* 天気ボタン */
+        .weather-container {
+            display: flex;
+            justify(content): space-around;
+            justify-content: space-around;
+            margin: 30px 0;
+        }
+        .weather-btn {
+            background-color: #fff;
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            text-align: center;
+            width: 80px;
+            transition: all 0.2s;
+        }
+        .weather-btn:hover:not(.disabled) {
+            background-color: #f0f8ff;
+        }
+        .weather-btn.selected {
+            border-color: var(--primary-color);
+            background-color: #e8f5e9;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+        }
+        .weather-btn.disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            background-color: #f9f9f9;
+        }
+        .emoji {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        .text {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* 入力エリアと送信ボタン */
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        input[type="text"]:disabled {
+            background-color: #eee;
+        }
+        .submit-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0 25px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .submit-btn:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        .submit-btn:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+
+        /* カレンダーのスタイル */
+        .calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .calendar-nav button {
+            background-color: #eee;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .calendar-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            background-color: #f0f0f0;
+            padding: 5px 0;
+            border-radius: 4px;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .calendar-day {
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 8px 0;
+            text-align: center;
+            min-height: 55px;
+            cursor: pointer;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+        .calendar-day:hover:not(.empty) {
+            background-color: #f7f7f7;
+        }
+        .calendar-day.empty {
+            background-color: #fafafa;
+            border: none;
+            cursor: default;
+        }
+        .day-num {
+            font-size: 12px;
+            color: #666;
+        }
+        .day-weather {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 5px;
+        }
+
+        /* モーダル */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            max-width: 450px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .modal-btn {
+            padding: 10px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-yes { background-color: var(--primary-color); color: white; }
+        .btn-no { background-color: #ccc; color: black; }
+        
+        /* 先生用ビュー */
+        .login-input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .record-list {
+            text-align: left;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .record-item {
+            background: #f9f9f9;
+            padding: 10px;
+            border-left: 5px solid var(--primary-color);
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .record-date { font-size: 14px; color: #666; margin-bottom: 5px;}
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3>メニュー</h3>
+        <button class="sidebar-btn" onclick="switchView('home')">🏠 ホーム</button>
+        <button class="sidebar-btn" onclick="switchView('calendar')">📅 心の健康観察</button>
+    </div>
+
+    <div id="main-content">
+        <button class="teacher-btn" onclick="openLoginModal()">先生用</button>
+
+        <div id="app-container">
+            <div id="student-view">
+                
+                <div id="name-block">
+                    <h2>なまえを おしえてね</h2>
+                    <div class="input-container" style="max-width: 400px; margin: 30px auto;">
+                        <input type="text" id="student-name" placeholder="ここに なまえを かいてね" style="text-align: center;">
+                        <button class="submit-btn" onclick="checkName()">すすむ</button>
+                    </div>
+                </div>
+
+                <div id="input-block" style="display: none;">
+                    <h2 id="welcome-message">今日の心の中の天気を<br>教えてください</h2>
+                    
+                    <div class="weather-container" id="weather-options">
+                        <div class="weather-btn" onclick="selectWeather('はれ', this)">
+                            <div class="emoji">☀️</div>
+                            <div class="text">はれ</div>
+                        </div>
+                        <div class="weather-btn" onclick="selectWeather('くもり', this)">
+                            <div class="emoji">☁️</div>
+                            <div class="text">くもり</div>
+                        </div>
+                        <div class="weather-btn" onclick="selectWeather('あめ', this)">
+                            <div class="emoji">☔️</div>
+                            <div class="text">あめ</div>
+                        </div>
+                        <div class="weather-btn" onclick="selectWeather('かみなり', this)">
+                            <div class="emoji">⚡️</div>
+                            <div class="text">かみなり</div>
+                        </div>
+                    </div>
+
+                    <div class="input-container">
+                        <input type="text" id="comment-input" placeholder="ひとこと（かかなくてもいいよ）">
+                        <button class="submit-btn" id="submit-btn" onclick="openConfirmModal()">送信</button>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="backToName()" style="background: none; border: none; color: #888; cursor: pointer; text-decoration: underline; font-size: 14px;">← なまえを いれなおす</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="calendar-view" style="display: none;">
+                <h2>こころの健康観察</h2>
+                <div class="calendar-nav">
+                    <button onclick="changeMonth(-1)">◀ 前の月</button>
+                    <span id="calendar-month-title" style="font-weight: bold; font-size: 18px;"></span>
+                    <button onclick="changeMonth(1)">次の月 ▶</button>
+                </div>
+                <div class="calendar-header">
+                    <div style="color: red;">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div style="color: blue;">土</div>
+                </div>
+                <div class="calendar" id="calendar-days"></div>
+            </div>
+
+            <div id="teacher-view" style="display: none;">
+                <h2>みんなの記録</h2>
+                <button onclick="switchView('home')" style="margin-bottom: 15px; padding: 5px 10px; cursor: pointer;">← もどる</button>
+                <div class="record-list" id="record-list">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal-content">
+            <h3>これで送信しますか？</h3>
+            <div class="modal-buttons">
+                <button class="modal-btn btn-yes" onclick="submitData()">はい</button>
+                <button class="modal-btn btn-no" onclick="closeConfirmModal()">いいえ</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal-content">
+            <h3>先生用ログイン</h3>
+            <input type="text" id="userid" class="login-input" placeholder="ユーザーID">
+            <input type="password" id="password" class="login-input" placeholder="パスワード">
+            <div class="modal-buttons">
+                <button class="modal-btn btn-yes" onclick="login()">サインイン</button>
+                <button class="modal-btn btn-no" onclick="closeLoginModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
+            <h3 id="detail-date">〇月〇日</h3>
+            <div id="detail-list" style="margin: 20px 0; text-align: left; max-height: 250px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px;">
+                </div>
+            <div class="modal-buttons">
+                <button class="modal-btn btn-no" onclick="closeDetailModal()">とじる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedWeather = "";
+        let currentName = "";
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+
+        // なまえのチェックと画面切り替え
+        function checkName() {
+            const nameInput = document.getElementById('student-name').value.trim();
+            if (!nameInput) {
+                alert("なまえを いれてね！");
+                return;
+            }
+
+            const now = new Date();
+            const ymdString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            let records = JSON.parse(localStorage.getItem('health_records')) || [];
+            
+            // この名前の人が今日すでに送信しているか確認
+            const isSubmitted = records.some(r => r.ymd === ymdString && r.name === nameInput);
+            
+            if (isSubmitted) {
+                alert(nameInput + "さんは、きょうは もう そうしん されているよ！");
+                return;
+            }
+
+            // 次のステップへ
+            currentName = nameInput;
+            document.getElementById('welcome-message').innerHTML = `${currentName} さんの<br>きょうの こころのてんきは？`;
+            document.getElementById('name-block').style.display = 'none';
+            document.getElementById('input-block').style.display = 'block';
+
+            // 音声でお名前を呼びかけて質問する
+            const uttr = new SpeechSynthesisUtterance(`${currentName} さんの、きょうの、こころのなかのてんきを、おしえてください`);
+            uttr.lang = "ja-JP";
+            speechSynthesis.speak(uttr);
+        }
+
+        // なまえ入力画面に戻るリセット処理
+        function backToName() {
+            currentName = "";
+            document.getElementById('student-name').value = "";
+            document.getElementById('comment-input').value = "";
+            selectedWeather = "";
+            
+            const buttons = document.querySelectorAll('.weather-btn');
+            buttons.forEach(btn => btn.classList.remove('selected'));
+
+            document.getElementById('input-block').style.display = 'none';
+            document.getElementById('name-block').style.display = 'block';
+        }
+
+        // 画面の切り替え
+        function switchView(viewName) {
+            document.getElementById('student-view').style.display = 'none';
+            document.getElementById('calendar-view').style.display = 'none';
+            document.getElementById('teacher-view').style.display = 'none';
+            document.querySelector('.teacher-btn').style.display = 'block';
+
+            if (viewName === 'home') {
+                backToName(); // ホームに戻るたびに入力をリセット
+                document.getElementById('student-view').style.display = 'block';
+            } else if (viewName === 'calendar') {
+                document.getElementById('calendar-view').style.display = 'block';
+                renderCalendar();
+            } else if (viewName === 'teacher') {
+                document.getElementById('teacher-view').style.display = 'block';
+                document.querySelector('.teacher-btn').style.display = 'none';
+                showTeacherView();
+            }
+        }
+
+        // 天気の選択
+        function selectWeather(weather, element) {
+            if (element.classList.contains('disabled')) return;
+            selectedWeather = weather;
+            const buttons = document.querySelectorAll('.weather-btn');
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        // 確認モーダルの開閉
+        function openConfirmModal() {
+            if (!selectedWeather) {
+                alert("てんきを えらんでね！");
+                return;
+            }
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        // 送信処理
+        function submitData() {
+            closeConfirmModal();
+            const comment = document.getElementById('comment-input').value;
+            
+            const now = new Date();
+            const dateString = `${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}時${String(now.getMinutes()).padStart(2, '0')}分`;
+            const ymdString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            // データの保存（nameを追加）
+            const record = { name: currentName, ymd: ymdString, date: dateString, weather: selectedWeather, comment: comment };
+            let records = JSON.parse(localStorage.getItem('health_records')) || [];
+            records.push(record);
+            localStorage.setItem('health_records', JSON.stringify(records));
+            
+            // 音声読み上げ
+            const uttr = new SpeechSynthesisUtterance("そうしんしました");
+            uttr.lang = "ja-JP";
+            speechSynthesis.speak(uttr);
+
+            // 送信が完了したら、次の人が使えるように名前入力画面に戻す
+            alert("そうしんが完了したよ！");
+            backToName();
+        }
+
+        // カレンダーの描画
+        function renderCalendar() {
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            const calendarDaysContainer = document.getElementById('calendar-days');
+            calendarDaysContainer.innerHTML = '';
+            
+            document.getElementById('calendar-month-title').innerText = `${currentYear}年 ${currentMonth + 1}月`;
+            
+            // 空白セル
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-day empty';
+                calendarDaysContainer.appendChild(emptyCell);
+            }
+            
+            let records = JSON.parse(localStorage.getItem('health_records')) || [];
+            
+            // 日付セル
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'calendar-day';
+                
+                const ymd = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // その日の全員分のデータを集める
+                const dayRecords = records.filter(r => r.ymd === ymd);
+                
+                dayCell.innerHTML = `<span class="day-num">${day}</span>`;
+                
+                if (dayRecords.length > 0) {
+                    // その日に誰かしらの記録があれば人数を表示する
+                    dayCell.innerHTML += `<span class="day-weather">📝 ${dayRecords.length}にん</span>`;
+                    dayCell.style.backgroundColor = "#e8f5e9"; // 記録がある日は薄い緑に
+                }
+                
+                // 日にちを押したら詳細を表示
+                dayCell.onclick = () => showDayDetail(ymd);
+                calendarDaysContainer.appendChild(dayCell);
+            }
+        }
+
+        function changeMonth(diff) {
+            currentMonth += diff;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+
+        // カレンダー日付詳細（その日の全員分のデータリスト）の表示
+        function showDayDetail(ymd) {
+            const modal = document.getElementById('detail-modal');
+            const dateEl = document.getElementById('detail-date');
+            const listEl = document.getElementById('detail-list');
+            
+            const [y, m, d] = ymd.split('-');
+            dateEl.innerText = `${parseInt(m)}月${parseInt(d)}日の みんなのきろく`;
+            listEl.innerHTML = '';
+
+            let records = JSON.parse(localStorage.getItem('health_records')) || [];
+            const dayRecords = records.filter(r => r.ymd === ymd);
+
+            if (dayRecords.length > 0) {
+                dayRecords.forEach(r => {
+                    let emoji = "";
+                    if (r.weather === "はれ") emoji = "☀️";
+                    if (r.weather === "くもり") emoji = "☁️";
+                    if (r.weather === "あめ") emoji = "☔️";
+                    if (r.weather === "かみなり") emoji = "⚡️";
+
+                    const item = document.createElement('div');
+                    item.style.padding = "10px 0";
+                    item.style.borderBottom = "1px solid #eee";
+                    item.innerHTML = `
+                        <strong>【${r.name} さん】</strong> ${emoji} ${r.weather}<br>
+                        <span style="font-size: 14px; color: #555;">💬 ${r.comment ? r.comment : '（なし）'}</span>
+                    `;
+                    listEl.appendChild(item);
+                });
+            } else {
+                listEl.innerHTML = '<p style="text-align:center; color:#999; margin: 20px 0;">まだ きろくが ありません</p>';
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detail-modal').style.display = 'none';
+        }
+
+        // 先生用ログイン
+        function openLoginModal() {
+            document.getElementById('login-modal').style.display = 'flex';
+        }
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').style.display = 'none';
+            document.getElementById('userid').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        function login() {
+            const id = document.getElementById('userid').value;
+            const pass = document.getElementById('password').value;
+
+            if (id === "HARUTO8610" && pass === "ABC1234") {
+                closeLoginModal();
+                switchView('teacher');
+            } else {
+                alert("ユーザーIDまたはパスワードが違います。");
+            }
+        }
+
+        // 先生用画面の表示（名前順・最新順に並び替え）
+        function showTeacherView() {
+            const listContainer = document.getElementById('record-list');
+            listContainer.innerHTML = '';
+
+            let records = JSON.parse(localStorage.getItem('health_records')) || [];
+            
+            if (records.length === 0) {
+                listContainer.innerHTML = '<p>まだ記録がありません。</p>';
+                return;
+            }
+
+            records.reverse().forEach(record => {
+                const item = document.createElement('div');
+                item.className = 'record-item';
+                item.innerHTML = `
+                    <div class="record-date">${record.date}</div>
+                    <strong>なまえ：</strong> ${record.name} さん<br>
+                    <strong>天気：</strong> ${record.weather} <br>
+                    <strong>コメント：</strong> ${record.comment ? record.comment : 'なし'}
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>心の健康観察</title>
+    <!-- Google Identity Services のライブラリを読み込み -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
             --primary-color: #4CAF50;
@@ -96,7 +98,6 @@
         /* 天気ボタン */
         .weather-container {
             display: flex;
-            justify(content): space-around;
             justify-content: space-around;
             margin: 30px 0;
         }
@@ -300,11 +301,11 @@
         <div id="app-container">
             <div id="student-view">
                 
+                <!-- Googleログインブロック -->
                 <div id="name-block">
-                    <h2>なまえを おしえてね</h2>
-                    <div class="input-container" style="max-width: 400px; margin: 30px auto;">
-                        <input type="text" id="student-name" placeholder="ここに なまえを かいてね" style="text-align: center;">
-                        <button class="submit-btn" onclick="checkName()">すすむ</button>
+                    <h2>Googleアカウントで<br>ログインしてね</h2>
+                    <div style="display: flex; justify-content: center; margin: 30px 0;">
+                        <div id="googleButtonDiv"></div>
                     </div>
                 </div>
 
@@ -336,7 +337,7 @@
                     </div>
                     
                     <div style="text-align: center; margin-top: 20px;">
-                        <button onclick="backToName()" style="background: none; border: none; color: #888; cursor: pointer; text-decoration: underline; font-size: 14px;">← なまえを いれなおす</button>
+                        <button onclick="backToName()" style="background: none; border: none; color: #888; cursor: pointer; text-decoration: underline; font-size: 14px;">← アカウントを かえる</button>
                     </div>
                 </div>
 
@@ -358,8 +359,7 @@
             <div id="teacher-view" style="display: none;">
                 <h2>みんなの記録</h2>
                 <button onclick="switchView('home')" style="margin-bottom: 15px; padding: 5px 10px; cursor: pointer;">← もどる</button>
-                <div class="record-list" id="record-list">
-                    </div>
+                <div class="record-list" id="record-list"></div>
             </div>
         </div>
     </div>
@@ -389,8 +389,7 @@
     <div class="modal-overlay" id="detail-modal">
         <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
             <h3 id="detail-date">〇月〇日</h3>
-            <div id="detail-list" style="margin: 20px 0; text-align: left; max-height: 250px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px;">
-                </div>
+            <div id="detail-list" style="margin: 20px 0; text-align: left; max-height: 250px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px;"></div>
             <div class="modal-buttons">
                 <button class="modal-btn btn-no" onclick="closeDetailModal()">とじる</button>
             </div>
@@ -398,32 +397,76 @@
     </div>
 
     <script>
+        // ★ここにGoogle Cloudで取得したクライアントIDを貼り付けます★
+        const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID_HERE";
+
         let selectedWeather = "";
         let currentName = "";
         let currentYear = new Date().getFullYear();
         let currentMonth = new Date().getMonth();
 
-        // なまえのチェックと画面切り替え
-        function checkName() {
-            const nameInput = document.getElementById('student-name').value.trim();
-            if (!nameInput) {
-                alert("なまえを いれてね！");
-                return;
+        // ページ読み込み時の処理
+        window.onload = function () {
+            if (GOOGLE_CLIENT_ID === "YOUR_CLIENT_ID_HERE") {
+                console.warn("クライアントIDが設定されていません。");
             }
+            // Googleログインの初期化
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleCredentialResponse
+            });
+            google.accounts.id.renderButton(
+                document.getElementById("googleButtonDiv"),
+                { theme: "outline", size: "large", type: "standard" }
+            );
 
+            // ★追加：過去にログインした名前がブラウザに保存されているか確認
+            const savedName = localStorage.getItem('health_google_name');
+            if (savedName) {
+                // 保存されていれば、ログイン工程を飛ばして直接処理に進む
+                processLogin(savedName, true);
+            }
+        };
+
+        // Googleから送られてきたデータを解読する関数
+        function decodeJwtResponse(token) {
+            let base64Url = token.split('.')[1];
+            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        }
+
+        // Googleログインボタンを押したときに実行される処理
+        function handleCredentialResponse(response) {
+            const responsePayload = decodeJwtResponse(response.credential);
+            const nameInput = responsePayload.name; 
+            processLogin(nameInput, false);
+        }
+
+        // ログイン処理（手動・自動共通）
+        function processLogin(nameInput, isAutoSkip) {
             const now = new Date();
             const ymdString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
             
-            // この名前の人が今日すでに送信しているか確認
+            // すでに今日送信しているか確認
             const isSubmitted = records.some(r => r.ymd === ymdString && r.name === nameInput);
             
             if (isSubmitted) {
+                // 自動スキップで開いた時に送信済みなら、アラートを出してログイン画面に留める
                 alert(nameInput + "さんは、きょうは もう そうしん されているよ！");
+                if (isAutoSkip) {
+                    localStorage.removeItem('health_google_name'); // 次回のために一度クリア
+                }
                 return;
             }
 
-            // 次のステップへ
+            // ★名前をブラウザに保存する（これで次回から工程を飛ばせるようになります）
+            localStorage.setItem('health_google_name', nameInput);
+
+            // 画面を天気入力に進める
             currentName = nameInput;
             document.getElementById('welcome-message').innerHTML = `${currentName} さんの<br>きょうの こころのてんきは？`;
             document.getElementById('name-block').style.display = 'none';
@@ -435,18 +478,23 @@
             speechSynthesis.speak(uttr);
         }
 
-        // なまえ入力画面に戻るリセット処理
-        function backToName() {
-            currentName = "";
-            document.getElementById('student-name').value = "";
+        // 入力を空にするリセット処理
+        function resetForm() {
             document.getElementById('comment-input').value = "";
             selectedWeather = "";
-            
             const buttons = document.querySelectorAll('.weather-btn');
             buttons.forEach(btn => btn.classList.remove('selected'));
 
             document.getElementById('input-block').style.display = 'none';
             document.getElementById('name-block').style.display = 'block';
+        }
+
+        // 「アカウントを かえる」ボタンが押された時の処理
+        function backToName() {
+            // ★保存されていた名前の記憶を消去してログイン画面に戻す
+            localStorage.removeItem('health_google_name');
+            currentName = "";
+            resetForm();
         }
 
         // 画面の切り替え
@@ -457,7 +505,13 @@
             document.querySelector('.teacher-btn').style.display = 'block';
 
             if (viewName === 'home') {
-                backToName(); // ホームに戻るたびに入力をリセット
+                // ホームに戻るとき、ログイン記憶が残っていれば自動で天気画面へ、なければログイン画面へ
+                const savedName = localStorage.getItem('health_google_name');
+                if (savedName) {
+                    processLogin(savedName, true);
+                } else {
+                    resetForm();
+                }
                 document.getElementById('student-view').style.display = 'block';
             } else if (viewName === 'calendar') {
                 document.getElementById('calendar-view').style.display = 'block';
@@ -478,7 +532,6 @@
             element.classList.add('selected');
         }
 
-        // 確認モーダルの開閉
         function openConfirmModal() {
             if (!selectedWeather) {
                 alert("てんきを えらんでね！");
@@ -500,7 +553,6 @@
             const dateString = `${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}時${String(now.getMinutes()).padStart(2, '0')}分`;
             const ymdString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            // データの保存（nameを追加）
             const record = { name: currentName, ymd: ymdString, date: dateString, weather: selectedWeather, comment: comment };
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
             records.push(record);
@@ -511,9 +563,10 @@
             uttr.lang = "ja-JP";
             speechSynthesis.speak(uttr);
 
-            // 送信が完了したら、次の人が使えるように名前入力画面に戻す
-            alert("そうしんが完了したよ！");
-            backToName();
+            alert("そうしん 完了したよ！");
+            
+            // 送信完了後は入力フォームを閉じ、ログインの記憶は維持したまま最初の画面へ戻す
+            resetForm();
         }
 
         // カレンダーの描画
@@ -526,7 +579,6 @@
             
             document.getElementById('calendar-month-title').innerText = `${currentYear}年 ${currentMonth + 1}月`;
             
-            // 空白セル
             for (let i = 0; i < firstDay; i++) {
                 const emptyCell = document.createElement('div');
                 emptyCell.className = 'calendar-day empty';
@@ -535,25 +587,20 @@
             
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
             
-            // 日付セル
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
                 dayCell.className = 'calendar-day';
                 
                 const ymd = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                
-                // その日の全員分のデータを集める
                 const dayRecords = records.filter(r => r.ymd === ymd);
                 
                 dayCell.innerHTML = `<span class="day-num">${day}</span>`;
                 
                 if (dayRecords.length > 0) {
-                    // その日に誰かしらの記録があれば人数を表示する
                     dayCell.innerHTML += `<span class="day-weather">📝 ${dayRecords.length}にん</span>`;
-                    dayCell.style.backgroundColor = "#e8f5e9"; // 記録がある日は薄い緑に
+                    dayCell.style.backgroundColor = "#e8f5e9";
                 }
                 
-                // 日にちを押したら詳細を表示
                 dayCell.onclick = () => showDayDetail(ymd);
                 calendarDaysContainer.appendChild(dayCell);
             }
@@ -571,14 +618,13 @@
             renderCalendar();
         }
 
-        // カレンダー日付詳細（その日の全員分のデータリスト）の表示
         function showDayDetail(ymd) {
             const modal = document.getElementById('detail-modal');
             const dateEl = document.getElementById('detail-date');
             const listEl = document.getElementById('detail-list');
             
             const [y, m, d] = ymd.split('-');
-            dateEl.innerText = `${parseInt(m)}月${parseInt(d)}日の みんなのきろく`;
+            dateEl.innerText = `${parseInt(m)}月${parseInt(d)}日の みんあのきろく`;
             listEl.innerHTML = '';
 
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
@@ -611,7 +657,6 @@
             document.getElementById('detail-modal').style.display = 'none';
         }
 
-        // 先生用ログイン
         function openLoginModal() {
             document.getElementById('login-modal').style.display = 'flex';
         }
@@ -634,7 +679,6 @@
             }
         }
 
-        // 先生用画面の表示（名前順・最新順に並び替え）
         function showTeacherView() {
             const listContainer = document.getElementById('record-list');
             listContainer.innerHTML = '';

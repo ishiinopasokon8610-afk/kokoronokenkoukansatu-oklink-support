@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>心の健康観察</title>
-    <!-- Google Identity Services のライブラリを読み込み -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
@@ -21,6 +20,47 @@
             overflow: hidden;
         }
         
+        /* 起動時のクリック画面 */
+        #start-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 9999;
+        }
+
+        /* ログイン専用画面（ログインするまで他は見せない） */
+        #login-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 2000;
+        }
+        .login-box {
+            background-color: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        /* メインアプリ全体（ログイン後に表示） */
+        #app-wrapper {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
         /* 左のメニューバー */
         #sidebar {
             width: 200px;
@@ -63,6 +103,7 @@
             justify-content: center;
             align-items: center;
             overflow-y: auto;
+            background-color: var(--bg-color);
         }
 
         #app-container {
@@ -73,7 +114,7 @@
             width: 90%;
             max-width: 600px;
         }
-        /* 右上の先生用ボタン */
+        
         .teacher-btn {
             position: absolute;
             top: 15px;
@@ -86,14 +127,8 @@
             font-size: 14px;
             z-index: 10;
         }
-        .teacher-btn:hover {
-            background-color: #ddd;
-        }
-        h1, h2 {
-            text-align: center;
-            color: #333;
-            margin-top: 0;
-        }
+        .teacher-btn:hover { background-color: #ddd; }
+        h1, h2 { text-align: center; color: #333; margin-top: 0; }
         
         /* 天気ボタン */
         .weather-container {
@@ -111,9 +146,7 @@
             width: 80px;
             transition: all 0.2s;
         }
-        .weather-btn:hover:not(.disabled) {
-            background-color: #f0f8ff;
-        }
+        .weather-btn:hover:not(.disabled) { background-color: #f0f8ff; }
         .weather-btn.selected {
             border-color: var(--primary-color);
             background-color: #e8f5e9;
@@ -124,14 +157,8 @@
             opacity: 0.6;
             background-color: #f9f9f9;
         }
-        .emoji {
-            font-size: 40px;
-            margin-bottom: 10px;
-        }
-        .text {
-            font-size: 18px;
-            font-weight: bold;
-        }
+        .emoji { font-size: 40px; margin-bottom: 10px; }
+        .text { font-size: 18px; font-weight: bold; }
 
         /* 入力エリアと送信ボタン */
         .input-container {
@@ -146,9 +173,7 @@
             border-radius: 5px;
             font-size: 16px;
         }
-        input[type="text"]:disabled {
-            background-color: #eee;
-        }
+        input[type="text"]:disabled { background-color: #eee; }
         .submit-btn {
             background-color: var(--primary-color);
             color: white;
@@ -159,157 +184,61 @@
             cursor: pointer;
             font-weight: bold;
         }
-        .submit-btn:hover:not(:disabled) {
-            background-color: #45a049;
-        }
-        .submit-btn:disabled {
-            background-color: #aaa;
-            cursor: not-allowed;
-        }
+        .submit-btn:hover:not(:disabled) { background-color: #45a049; }
+        .submit-btn:disabled { background-color: #aaa; cursor: not-allowed; }
 
-        /* カレンダーのスタイル */
-        .calendar-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .calendar-nav button {
-            background-color: #eee;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .calendar-header {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 10px;
-            background-color: #f0f0f0;
-            padding: 5px 0;
-            border-radius: 4px;
-        }
-        .calendar {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 5px;
-        }
-        .calendar-day {
-            border: 1px solid #eee;
-            border-radius: 4px;
-            padding: 8px 0;
-            text-align: center;
-            min-height: 55px;
-            cursor: pointer;
-            background-color: #fff;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            box-sizing: border-box;
-        }
-        .calendar-day:hover:not(.empty) {
-            background-color: #f7f7f7;
-        }
-        .calendar-day.empty {
-            background-color: #fafafa;
-            border: none;
-            cursor: default;
-        }
-        .day-num {
-            font-size: 12px;
-            color: #666;
-        }
-        .day-weather {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            margin-top: 5px;
-        }
+        /* カレンダーとモーダル（省略なし・前回と同じ） */
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .calendar-nav button { background-color: #eee; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: bold; margin-bottom: 10px; background-color: #f0f0f0; padding: 5px 0; border-radius: 4px; }
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .calendar-day { border: 1px solid #eee; border-radius: 4px; padding: 8px 0; text-align: center; min-height: 55px; cursor: pointer; background-color: #fff; display: flex; flex-direction: column; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        .calendar-day:hover:not(.empty) { background-color: #f7f7f7; }
+        .calendar-day.empty { background-color: #fafafa; border: none; cursor: default; }
+        .day-num { font-size: 12px; color: #666; }
+        .day-weather { font-size: 14px; font-weight: bold; color: #333; margin-top: 5px; }
 
-        /* モーダル */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            width: 80%;
-            max-width: 450px;
-        }
-        .modal-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .modal-btn {
-            padding: 10px 30px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 3000; }
+        .modal-content { background: white; padding: 30px; border-radius: 10px; text-align: center; width: 80%; max-width: 450px; }
+        .modal-buttons { display: flex; justify-content: center; gap: 20px; margin-top: 20px; }
+        .modal-btn { padding: 10px 30px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; }
         .btn-yes { background-color: var(--primary-color); color: white; }
         .btn-no { background-color: #ccc; color: black; }
         
-        /* 先生用ビュー */
-        .login-input {
-            width: 80%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .record-list {
-            text-align: left;
-            margin-top: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .record-item {
-            background: #f9f9f9;
-            padding: 10px;
-            border-left: 5px solid var(--primary-color);
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
+        .login-input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        .record-list { text-align: left; margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .record-item { background: #f9f9f9; padding: 10px; border-left: 5px solid var(--primary-color); margin-bottom: 10px; border-radius: 4px; }
         .record-date { font-size: 14px; color: #666; margin-bottom: 5px;}
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <h3>メニュー</h3>
-        <button class="sidebar-btn" onclick="switchView('home')">🏠 ホーム</button>
-        <button class="sidebar-btn" onclick="switchView('calendar')">📅 心の健康観察</button>
+    <div id="start-overlay" onclick="startApp()">
+        がめんを クリックして スタート
     </div>
 
-    <div id="main-content">
-        <button class="teacher-btn" onclick="openLoginModal()">先生用</button>
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>Googleアカウントで<br>ログインしてね</h2>
+            <div style="display: flex; justify-content: center; margin: 30px 0;">
+                <div id="googleButtonDiv"></div>
+            </div>
+        </div>
+    </div>
 
-        <div id="app-container">
-            <div id="student-view">
-                
-                <!-- Googleログインブロック -->
-                <div id="name-block">
-                    <h2>Googleアカウントで<br>ログインしてね</h2>
-                    <div style="display: flex; justify-content: center; margin: 30px 0;">
-                        <div id="googleButtonDiv"></div>
-                    </div>
-                </div>
+    <div id="app-wrapper">
+        <div id="sidebar">
+            <h3>メニュー</h3>
+            <button class="sidebar-btn" onclick="switchView('home')">🏠 ホーム</button>
+            <button class="sidebar-btn" onclick="switchView('calendar')">📅 心の健康観察</button>
+            <button class="sidebar-btn" onclick="logout()" style="margin-top: auto; background-color: #666;">🚪 ログアウト</button>
+        </div>
 
-                <div id="input-block" style="display: none;">
+        <div id="main-content">
+            <button class="teacher-btn" onclick="openLoginModal()">先生用</button>
+
+            <div id="app-container">
+                <div id="student-view">
                     <h2 id="welcome-message">今日の心の中の天気を<br>教えてください</h2>
                     
                     <div class="weather-container" id="weather-options">
@@ -335,31 +264,26 @@
                         <input type="text" id="comment-input" placeholder="ひとこと（かかなくてもいいよ）">
                         <button class="submit-btn" id="submit-btn" onclick="openConfirmModal()">送信</button>
                     </div>
-                    
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button onclick="backToName()" style="background: none; border: none; color: #888; cursor: pointer; text-decoration: underline; font-size: 14px;">← アカウントを かえる</button>
+                </div>
+
+                <div id="calendar-view" style="display: none;">
+                    <h2>こころの健康観察</h2>
+                    <div class="calendar-nav">
+                        <button onclick="changeMonth(-1)">◀ 前の月</button>
+                        <span id="calendar-month-title" style="font-weight: bold; font-size: 18px;"></span>
+                        <button onclick="changeMonth(1)">次の月 ▶</button>
                     </div>
+                    <div class="calendar-header">
+                        <div style="color: red;">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div style="color: blue;">土</div>
+                    </div>
+                    <div class="calendar" id="calendar-days"></div>
                 </div>
 
-            </div>
-
-            <div id="calendar-view" style="display: none;">
-                <h2>こころの健康観察</h2>
-                <div class="calendar-nav">
-                    <button onclick="changeMonth(-1)">◀ 前の月</button>
-                    <span id="calendar-month-title" style="font-weight: bold; font-size: 18px;"></span>
-                    <button onclick="changeMonth(1)">次の月 ▶</button>
+                <div id="teacher-view" style="display: none;">
+                    <h2>みんなの記録</h2>
+                    <button onclick="switchView('home')" style="margin-bottom: 15px; padding: 5px 10px; cursor: pointer;">← もどる</button>
+                    <div class="record-list" id="record-list"></div>
                 </div>
-                <div class="calendar-header">
-                    <div style="color: red;">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div style="color: blue;">土</div>
-                </div>
-                <div class="calendar" id="calendar-days"></div>
-            </div>
-
-            <div id="teacher-view" style="display: none;">
-                <h2>みんなの記録</h2>
-                <button onclick="switchView('home')" style="margin-bottom: 15px; padding: 5px 10px; cursor: pointer;">← もどる</button>
-                <div class="record-list" id="record-list"></div>
             </div>
         </div>
     </div>
@@ -380,7 +304,7 @@
             <input type="text" id="userid" class="login-input" placeholder="ユーザーID">
             <input type="password" id="password" class="login-input" placeholder="パスワード">
             <div class="modal-buttons">
-                <button class="modal-btn btn-yes" onclick="login()">サインイン</button>
+                <button class="modal-btn btn-yes" onclick="teacherLogin()">サインイン</button>
                 <button class="modal-btn btn-no" onclick="closeLoginModal()">キャンセル</button>
             </div>
         </div>
@@ -398,19 +322,25 @@
 
     <script>
         // ★ここにGoogle Cloudで取得したクライアントIDを貼り付けます★
-        const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID_HERE";
+        const GOOGLE_CLIENT_ID = "613887589953-565hkqq415d6nfheo6r8noduhnm8i52n.apps.googleusercontent.com";
 
         let selectedWeather = "";
         let currentName = "";
         let currentYear = new Date().getFullYear();
         let currentMonth = new Date().getMonth();
 
-        // ページ読み込み時の処理
+        // 音声を読み上げる関数
+        function speak(text) {
+            const uttr = new SpeechSynthesisUtterance(text);
+            uttr.lang = "ja-JP";
+            speechSynthesis.speak(uttr);
+        }
+
+        // 初期化処理（Googleボタンの描画準備）
         window.onload = function () {
             if (GOOGLE_CLIENT_ID === "YOUR_CLIENT_ID_HERE") {
                 console.warn("クライアントIDが設定されていません。");
             }
-            // Googleログインの初期化
             google.accounts.id.initialize({
                 client_id: GOOGLE_CLIENT_ID,
                 callback: handleCredentialResponse
@@ -419,14 +349,21 @@
                 document.getElementById("googleButtonDiv"),
                 { theme: "outline", size: "large", type: "standard" }
             );
+        };
 
-            // ★追加：過去にログインした名前がブラウザに保存されているか確認
+        // 最初のクリックでスタート（音声再生の許可を得るため）
+        function startApp() {
+            document.getElementById('start-overlay').style.display = 'none';
+            
+            // 過去にログインした記憶があるかチェック
             const savedName = localStorage.getItem('health_google_name');
             if (savedName) {
-                // 保存されていれば、ログイン工程を飛ばして直接処理に進む
                 processLogin(savedName, true);
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+                speak("グーグル アカウントで、ログインしてね");
             }
-        };
+        }
 
         // Googleから送られてきたデータを解読する関数
         function decodeJwtResponse(token) {
@@ -438,63 +375,60 @@
             return JSON.parse(jsonPayload);
         }
 
-        // Googleログインボタンを押したときに実行される処理
+        // Googleログイン成功時の処理
         function handleCredentialResponse(response) {
             const responsePayload = decodeJwtResponse(response.credential);
             const nameInput = responsePayload.name; 
             processLogin(nameInput, false);
         }
 
-        // ログイン処理（手動・自動共通）
+        // メイン画面に進む処理
         function processLogin(nameInput, isAutoSkip) {
             const now = new Date();
             const ymdString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
             
-            // すでに今日送信しているか確認
             const isSubmitted = records.some(r => r.ymd === ymdString && r.name === nameInput);
             
             if (isSubmitted) {
-                // 自動スキップで開いた時に送信済みなら、アラートを出してログイン画面に留める
+                speak(`${nameInput} さんは、きょうは もう そうしん されているよ`);
                 alert(nameInput + "さんは、きょうは もう そうしん されているよ！");
                 if (isAutoSkip) {
-                    localStorage.removeItem('health_google_name'); // 次回のために一度クリア
+                    localStorage.removeItem('health_google_name');
+                    document.getElementById('login-screen').style.display = 'flex';
                 }
                 return;
             }
 
-            // ★名前をブラウザに保存する（これで次回から工程を飛ばせるようになります）
+            // ログイン記憶を保存
             localStorage.setItem('health_google_name', nameInput);
-
-            // 画面を天気入力に進める
             currentName = nameInput;
-            document.getElementById('welcome-message').innerHTML = `${currentName} さんの<br>きょうの こころのてんきは？`;
-            document.getElementById('name-block').style.display = 'none';
-            document.getElementById('input-block').style.display = 'block';
 
+            // ログイン画面を隠し、メインアプリを表示する
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'flex';
+            
+            document.getElementById('welcome-message').innerHTML = `${currentName} さんの<br>きょうの こころのてんきは？`;
+            
             // 音声でお名前を呼びかけて質問する
-            const uttr = new SpeechSynthesisUtterance(`${currentName} さんの、きょうの、こころのなかのてんきを、おしえてください`);
-            uttr.lang = "ja-JP";
-            speechSynthesis.speak(uttr);
+            speak(`${currentName} さんの、きょうの、こころのなかのてんきを、おしえてください`);
         }
 
-        // 入力を空にするリセット処理
-        function resetForm() {
+        // ログアウト処理（メニューバーのボタン）
+        function logout() {
+            localStorage.removeItem('health_google_name');
+            currentName = "";
             document.getElementById('comment-input').value = "";
             selectedWeather = "";
+            
             const buttons = document.querySelectorAll('.weather-btn');
             buttons.forEach(btn => btn.classList.remove('selected'));
 
-            document.getElementById('input-block').style.display = 'none';
-            document.getElementById('name-block').style.display = 'block';
-        }
-
-        // 「アカウントを かえる」ボタンが押された時の処理
-        function backToName() {
-            // ★保存されていた名前の記憶を消去してログイン画面に戻す
-            localStorage.removeItem('health_google_name');
-            currentName = "";
-            resetForm();
+            // アプリを隠してログイン画面に戻す
+            document.getElementById('app-wrapper').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+            
+            speak("ログアウトしました。グーグル アカウントで、ログインしてね");
         }
 
         // 画面の切り替え
@@ -505,17 +439,12 @@
             document.querySelector('.teacher-btn').style.display = 'block';
 
             if (viewName === 'home') {
-                // ホームに戻るとき、ログイン記憶が残っていれば自動で天気画面へ、なければログイン画面へ
-                const savedName = localStorage.getItem('health_google_name');
-                if (savedName) {
-                    processLogin(savedName, true);
-                } else {
-                    resetForm();
-                }
                 document.getElementById('student-view').style.display = 'block';
+                speak("ホーム画面です。");
             } else if (viewName === 'calendar') {
                 document.getElementById('calendar-view').style.display = 'block';
                 renderCalendar();
+                speak("こころのけんこうかんさつ カレンダーです。");
             } else if (viewName === 'teacher') {
                 document.getElementById('teacher-view').style.display = 'block';
                 document.querySelector('.teacher-btn').style.display = 'none';
@@ -523,28 +452,29 @@
             }
         }
 
-        // 天気の選択
         function selectWeather(weather, element) {
             if (element.classList.contains('disabled')) return;
             selectedWeather = weather;
             const buttons = document.querySelectorAll('.weather-btn');
             buttons.forEach(btn => btn.classList.remove('selected'));
             element.classList.add('selected');
+            speak(`${weather} がえらばれました`);
         }
 
         function openConfirmModal() {
             if (!selectedWeather) {
+                speak("てんきを えらんでね");
                 alert("てんきを えらんでね！");
                 return;
             }
             document.getElementById('confirm-modal').style.display = 'flex';
+            speak("これで そうしんしますか？");
         }
 
         function closeConfirmModal() {
             document.getElementById('confirm-modal').style.display = 'none';
         }
 
-        // 送信処理
         function submitData() {
             closeConfirmModal();
             const comment = document.getElementById('comment-input').value;
@@ -558,49 +488,36 @@
             records.push(record);
             localStorage.setItem('health_records', JSON.stringify(records));
             
-            // 音声読み上げ
-            const uttr = new SpeechSynthesisUtterance("そうしんしました");
-            uttr.lang = "ja-JP";
-            speechSynthesis.speak(uttr);
-
+            speak("そうしん 完了しました。ログアウトします。");
             alert("そうしん 完了したよ！");
             
-            // 送信完了後は入力フォームを閉じ、ログインの記憶は維持したまま最初の画面へ戻す
-            resetForm();
+            // 送信完了したら自動でログアウトする
+            logout();
         }
 
-        // カレンダーの描画
+        // カレンダーと先生用機能（前回と同様）
         function renderCalendar() {
             const firstDay = new Date(currentYear, currentMonth, 1).getDay();
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            
             const calendarDaysContainer = document.getElementById('calendar-days');
             calendarDaysContainer.innerHTML = '';
-            
             document.getElementById('calendar-month-title').innerText = `${currentYear}年 ${currentMonth + 1}月`;
-            
             for (let i = 0; i < firstDay; i++) {
                 const emptyCell = document.createElement('div');
                 emptyCell.className = 'calendar-day empty';
                 calendarDaysContainer.appendChild(emptyCell);
             }
-            
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
-            
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayCell = document.createElement('div');
                 dayCell.className = 'calendar-day';
-                
                 const ymd = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const dayRecords = records.filter(r => r.ymd === ymd);
-                
                 dayCell.innerHTML = `<span class="day-num">${day}</span>`;
-                
                 if (dayRecords.length > 0) {
                     dayCell.innerHTML += `<span class="day-weather">📝 ${dayRecords.length}にん</span>`;
                     dayCell.style.backgroundColor = "#e8f5e9";
                 }
-                
                 dayCell.onclick = () => showDayDetail(ymd);
                 calendarDaysContainer.appendChild(dayCell);
             }
@@ -608,13 +525,8 @@
 
         function changeMonth(diff) {
             currentMonth += diff;
-            if (currentMonth > 11) {
-                currentMonth = 0;
-                currentYear++;
-            } else if (currentMonth < 0) {
-                currentMonth = 11;
-                currentYear--;
-            }
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; } 
+            else if (currentMonth < 0) { currentMonth = 11; currentYear--; }
             renderCalendar();
         }
 
@@ -622,29 +534,18 @@
             const modal = document.getElementById('detail-modal');
             const dateEl = document.getElementById('detail-date');
             const listEl = document.getElementById('detail-list');
-            
             const [y, m, d] = ymd.split('-');
             dateEl.innerText = `${parseInt(m)}月${parseInt(d)}日の みんあのきろく`;
             listEl.innerHTML = '';
-
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
             const dayRecords = records.filter(r => r.ymd === ymd);
-
             if (dayRecords.length > 0) {
                 dayRecords.forEach(r => {
-                    let emoji = "";
-                    if (r.weather === "はれ") emoji = "☀️";
-                    if (r.weather === "くもり") emoji = "☁️";
-                    if (r.weather === "あめ") emoji = "☔️";
-                    if (r.weather === "かみなり") emoji = "⚡️";
-
+                    let emoji = r.weather === "はれ" ? "☀️" : r.weather === "くもり" ? "☁️" : r.weather === "あめ" ? "☔️" : "⚡️";
                     const item = document.createElement('div');
                     item.style.padding = "10px 0";
                     item.style.borderBottom = "1px solid #eee";
-                    item.innerHTML = `
-                        <strong>【${r.name} さん】</strong> ${emoji} ${r.weather}<br>
-                        <span style="font-size: 14px; color: #555;">💬 ${r.comment ? r.comment : '（なし）'}</span>
-                    `;
+                    item.innerHTML = `<strong>【${r.name} さん】</strong> ${emoji} ${r.weather}<br><span style="font-size: 14px; color: #555;">💬 ${r.comment ? r.comment : '（なし）'}</span>`;
                     listEl.appendChild(item);
                 });
             } else {
@@ -653,24 +554,13 @@
             modal.style.display = 'flex';
         }
 
-        function closeDetailModal() {
-            document.getElementById('detail-modal').style.display = 'none';
-        }
+        function closeDetailModal() { document.getElementById('detail-modal').style.display = 'none'; }
+        function openLoginModal() { document.getElementById('login-modal').style.display = 'flex'; }
+        function closeLoginModal() { document.getElementById('login-modal').style.display = 'none'; document.getElementById('userid').value = ''; document.getElementById('password').value = ''; }
 
-        function openLoginModal() {
-            document.getElementById('login-modal').style.display = 'flex';
-        }
-
-        function closeLoginModal() {
-            document.getElementById('login-modal').style.display = 'none';
-            document.getElementById('userid').value = '';
-            document.getElementById('password').value = '';
-        }
-
-        function login() {
+        function teacherLogin() {
             const id = document.getElementById('userid').value;
             const pass = document.getElementById('password').value;
-
             if (id === "HARUTO8610" && pass === "ABC1234") {
                 closeLoginModal();
                 switchView('teacher');
@@ -682,23 +572,15 @@
         function showTeacherView() {
             const listContainer = document.getElementById('record-list');
             listContainer.innerHTML = '';
-
             let records = JSON.parse(localStorage.getItem('health_records')) || [];
-            
             if (records.length === 0) {
                 listContainer.innerHTML = '<p>まだ記録がありません。</p>';
                 return;
             }
-
             records.reverse().forEach(record => {
                 const item = document.createElement('div');
                 item.className = 'record-item';
-                item.innerHTML = `
-                    <div class="record-date">${record.date}</div>
-                    <strong>なまえ：</strong> ${record.name} さん<br>
-                    <strong>天気：</strong> ${record.weather} <br>
-                    <strong>コメント：</strong> ${record.comment ? record.comment : 'なし'}
-                `;
+                item.innerHTML = `<div class="record-date">${record.date}</div><strong>なまえ：</strong> ${record.name} さん<br><strong>天気：</strong> ${record.weather} <br><strong>コメント：</strong> ${record.comment ? record.comment : 'なし'}`;
                 listContainer.appendChild(item);
             });
         }
